@@ -8,6 +8,8 @@
 // for convenience
 using nlohmann::json;
 using std::string;
+using std::cout;
+using std::endl;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -30,15 +32,20 @@ string hasData(string s) {
   return "";
 }
 
+
 int main() {
   uWS::Hub h;
 
   PID pid;
+  PID spid;
   /**
    * TODO: Initialize the pid variable.
    */
 
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
+  pid.Init(0.165, 1e-4, 0.92);
+  spid.Init(0.06, 0, 0.05);
+
+  h.onMessage([&pid, &spid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -57,22 +64,38 @@ int main() {
           double speed = std::stod(j[1]["speed"].get<string>());
           double angle = std::stod(j[1]["steering_angle"].get<string>());
           double steer_value;
+          double throttle_value;
           /**
            * TODO: Calculate steering value here, remember the steering value is
            *   [-1, 1].
            * NOTE: Feel free to play around with the throttle and speed.
            *   Maybe use another PID controller to control the speed!
            */
-          
+
+          double speed_limit = 30;
+
+          pid.UpdateError(cte);
+          steer_value = pid.TotalError();
+
+          if (steer_value > 1.0)
+						steer_value = 1.0;
+					else if (steer_value < -1.0)
+						steer_value = -1.0;
+
+          double max_speed = (speed_limit * (1 - abs(steer_value)));
+          spid.UpdateError(speed - max_speed);
+          throttle_value = spid.TotalError();
+
           // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
-                    << std::endl;
+          std::cout << "CTE: " << cte << ", Steering: " << steer_value << std::endl;
+          std::cout << "Max speed: " << max_speed << ", Throttle: " << throttle_value << std::endl;
+          std::cout << "\n";
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = throttle_value;//0.3;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }  // end "telemetry" if
       } else {
@@ -87,7 +110,7 @@ int main() {
     std::cout << "Connected!!!" << std::endl;
   });
 
-  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, 
+  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,
                          char *message, size_t length) {
     ws.close();
     std::cout << "Disconnected" << std::endl;
@@ -100,6 +123,6 @@ int main() {
     std::cerr << "Failed to listen to port" << std::endl;
     return -1;
   }
-  
+
   h.run();
 }

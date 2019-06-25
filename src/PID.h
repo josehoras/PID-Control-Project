@@ -1,8 +1,15 @@
 #ifndef PID_H
 #define PID_H
 
+#include <vector>
+#include <iostream>
+using std::cout;
+using std::endl;
+using std::vector;
+
 class PID {
  public:
+
   /**
    * Constructor
    */
@@ -31,6 +38,12 @@ class PID {
    */
   double TotalError();
 
+
+  double Correction();
+
+//  void Twiddle(int param, vector<double> p, vector<double> dp,
+//                double total_error, double best_err, vector<bool> repeat);
+
  private:
   /**
    * PID Errors
@@ -38,10 +51,12 @@ class PID {
   double p_error;
   double i_error;
   double d_error;
-
+  double prev_cte;
+  bool first;
+  double squared_error;
   /**
    * PID Coefficients
-   */ 
+   */
   double Kp;
   double Ki;
   double Kd;
